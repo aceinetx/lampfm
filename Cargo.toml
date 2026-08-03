@@ -1,0 +1,9 @@
+[package]
+name = "lampfm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+raylib = "5.5"
+imgui = { version="0.12.0", features=["docking"] }
+raylib_imgui = "1.0.1"
