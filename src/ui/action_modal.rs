@@ -5,7 +5,9 @@ use egui::{Id, Modal};
 impl LampFM {
     pub(crate) fn draw_action_modal(&mut self, ui: &Ui) {
         if let Some(action) = &mut self.action_context {
+            // let is_marked = self.marked_files.contains(&action.path);
             let mut closed = false;
+
             Modal::new(Id::new(&action.path)).show(ui.ctx(), |ui| {
                 ui.set_min_width(0.0);
                 ui.set_min_height(0.0);
@@ -29,6 +31,7 @@ impl LampFM {
                             }
                         }
                     });
+
                     if ui.button("close").clicked() {
                         closed = true;
                     }

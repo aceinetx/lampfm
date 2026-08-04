@@ -1,13 +1,14 @@
-use crate::{ActionContext, Config, SortKind};
+use crate::{ActionContext, Config, MarkedFilesStorage, SortKind};
 use std::cmp::Ordering;
 use std::fs::DirEntry;
 use std::path::PathBuf;
 
 pub struct LampFM {
     pub(crate) current_path: PathBuf,
-    pub(crate) sort_by: SortKind,
     pub(crate) dir_content: Vec<DirEntry>,
     pub(crate) action_context: Option<ActionContext>,
+    pub(crate) sort_by: SortKind,
+    pub(crate) marked_files: MarkedFilesStorage,
     pub config: Config,
 }
 
@@ -91,6 +92,7 @@ impl Default for LampFM {
             dir_content: vec![],
             config: Config::default(),
             action_context: None,
+            marked_files: MarkedFilesStorage::default(),
         };
         instance.change_to_home_dir();
         instance.config.load();
