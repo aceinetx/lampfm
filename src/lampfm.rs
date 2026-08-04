@@ -1,4 +1,4 @@
-use crate::{Config, SortKind};
+use crate::{ActionContext, Config, SortKind};
 use std::cmp::Ordering;
 use std::fs::DirEntry;
 use std::path::PathBuf;
@@ -7,6 +7,7 @@ pub struct LampFM {
     pub(crate) current_path: PathBuf,
     pub(crate) sort_by: SortKind,
     pub(crate) dir_content: Vec<DirEntry>,
+    pub(crate) action_context: Option<ActionContext>,
     pub config: Config,
 }
 
@@ -89,8 +90,10 @@ impl Default for LampFM {
             sort_by: SortKind::Name,
             dir_content: vec![],
             config: Config::default(),
+            action_context: None,
         };
         instance.change_to_home_dir();
+        instance.config.load();
         instance
     }
 }

@@ -1,11 +1,12 @@
-use crate::LampFM;
+use crate::{ActionContext, LampFM};
+use eframe::egui::Ui;
 use egui::{Button, ScrollArea};
 use egui_material_icons::icons::{ICON_FOLDER, ICON_INSERT_DRIVE_FILE};
 
 use std::fs::DirEntry;
 
 impl LampFM {
-    pub(crate) fn draw_content(&mut self, ui: &mut eframe::egui::Ui) {
+    pub(crate) fn draw_content(&mut self, ui: &mut Ui) {
         ScrollArea::vertical().show(ui, |ui| {
             let mut clicked_item: Option<&DirEntry> = None;
 
@@ -16,19 +17,20 @@ impl LampFM {
                     ICON_INSERT_DRIVE_FILE
                 };
 
-                if ui
-                    .add_sized(
-                        egui::vec2(ui.available_width(), 0.0),
-                        Button::new(format!(
-                            "{} {}",
-                            icon.codepoint,
-                            entry.file_name().to_string_lossy()
-                        ))
-                        .right_text(""),
-                    )
-                    .clicked()
-                {
+                let resp = ui.add_sized(
+                    egui::vec2(ui.available_width(), 0.0),
+                    Button::new(format!(
+                        "{} {}",
+                        icon.codepoint,
+                        entry.file_name().to_string_lossy()
+                    ))
+                    .right_text(""),
+                );
+                if resp.clicked() {
                     clicked_item = Some(entry);
+                }
+                if resp.secondary_clicked() {
+                    self.action_context = Some(ActionContext::new(entry.path()));
                 }
             }
 

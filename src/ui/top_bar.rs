@@ -5,14 +5,14 @@ use std::path::PathBuf;
 impl LampFM {
     pub(crate) fn draw_top_bar(&mut self, ui: &mut eframe::egui::Ui) {
         ui.horizontal(|ui| {
+            if ui.button(ICON_HOME).clicked() {
+                self.change_to_home_dir();
+            }
+
             if ui.button(ICON_ARROW_UPWARD).clicked()
                 && let Some(path) = self.current_path.parent()
             {
                 self.change_dir(path.to_path_buf());
-            }
-
-            if ui.button(ICON_HOME).clicked() {
-                self.change_to_home_dir();
             }
 
             let mut path_str = self.current_path.to_str().unwrap_or_default().to_string();
