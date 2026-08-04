@@ -65,6 +65,32 @@
           '';
         };
 
+        createLampFMConfig =
+          {
+            showDotfiles ? false,
+            places ? {
+              "Projects" = "~/Projects";
+              "Downloads" = "~/Downloads";
+              "Pictures" = "~/Pictures";
+              "Documents" = "~/Documents";
+            },
+          }:
+          let
+            showDotfilesValue = if showDotfiles then "true" else "false";
+            placesValues = map (
+              name:
+              let
+                value = places.${name};
+              in
+              ''["${name}", "${value}"]''
+            ) (builtins.attrNames places);
+            placesValue = "[${builtins.concatStringsSep ", " placesValues}]";
+          in
+          ''
+            show_dotfiles = ${showDotfilesValue}
+            places = ${placesValue}
+          '';
+
         packages.default =
           let
             wrapped = pkgs.rustPlatform.buildRustPackage {
