@@ -4,6 +4,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    fenix.url = "github:nix-community/fenix";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
   outputs =
@@ -11,61 +13,86 @@
       self,
       nixpkgs,
       flake-utils,
+      fenix,
+      rust-overlay,
+      ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
-        buildInputs = with pkgs; [
-          cargo
-          libx11
-          libxrandr
-          libxinerama
-          libxcursor
-          libxi
-          libGL
-          # libclang
-          # clang
-        ];
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [
+            fenix.overlays.default
+            rust-overlay.overlays.default
+          ];
+        };
+        lib = pkgs.lib;
+
+        stableToolchain = fenix.packages.${system}.complete.toolchain;
+        rustAnalyzer = fenix.packages.${system}.latest.rust-analyzer;
+        libPath =
+          with pkgs;
+          lib.makeLibraryPath [
+            wayland-protocols
+            wayland
+            libxkbcommon
+            libGL
+          ];
       in
       {
         devShells.default = pkgs.mkShell {
-          buildInputs = buildInputs // pkgs.cmake;
+          buildInputs =
+            with pkgs;
+            lib.flatten [
+              stableToolchain
+              rustAnalyzer
+              cargo-expand
+
+              u-config
+              wayland
+              wayland-protocols
+            ];
 
           shellHook = ''
-            export LD_LIBRARY_PATH="''${LD_LIBRARY_PATH}''${LD_LIBRARY_PATH:+:}${pkgs.libglvnd}/lib"
-          '';
-          LIBCLANG_PATH = pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
-          BINDGEN_EXTRA_CLANG_ARGS =
-            # Includes normal include path
-            (builtins.map (a: ''-I"${a}/include"'') [
-              # Add dev libraries here (e.g. pkgs.libvmi.dev)
-              pkgs.glibc.dev
-            ])
-            # Includes with special directory paths
-            ++ [
-              ''-I"${pkgs.llvmPackages_latest.libclang.lib}/lib/clang/${pkgs.llvmPackages_latest.libclang.version}/include"''
-              ''-I"${pkgs.glib.dev}/include/glib-2.0"''
-              "-I${pkgs.glib.out}/lib/glib-2.0/include/"
-            ];
-        };
-
-        packages.default = pkgs.stdenv.mkDerivation {
-          name = "lampfm";
-          version = "1.0.0";
-          src = self;
-
-          buildPhase = ''
-            cargo build --release
-          '';
-
-          buildInputs = buildInputs;
-
-          installPhase = ''
-            mkdir -p $out/bin
-            cp target/release/lampfm $out/bin/
+            export LD_LIBRARY_PATH="${libPath}"
           '';
         };
+
+        packages.default =
+          let
+            wrapped = pkgs.rustPlatform.buildRustPackage {
+              pname = "lampfm";
+              version = "1.0.0";
+
+              src = self;
+
+              cargoLock.lockFile = ./Cargo.lock;
+
+              nativeBuildInputs =
+                with pkgs;
+                lib.flatten [
+                  stableToolchain
+                  rustAnalyzer
+                  cargo-expand
+
+                  u-config
+                  wayland
+                  wayland-protocols
+                ];
+            };
+          in
+          pkgs.symlinkJoin {
+            name = "lampfm-wrapped";
+            paths = [ wrapped ];
+            buildInputs = [ pkgs.makeWrapper ];
+            postBuild = ''
+              mv "$out/bin/lampfm" "$out/bin/lampfm-real"
+
+              makeWrapper "$out/bin/lampfm-real" "$out/bin/lampfm" \
+              	--set LD_LIBRARY_PATH "${libPath}"
+            '';
+          };
       }
     );
 }

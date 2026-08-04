@@ -1,59 +1,22 @@
-use crate::SortKind;
-use raylib::prelude::*;
-use raylib_imgui::RaylibGui;
+use crate::{Config, SortKind};
 use std::cmp::Ordering;
 use std::fs::DirEntry;
 use std::path::PathBuf;
 
 pub struct LampFM {
-    pub(crate) window_size: Vector2,
     pub(crate) current_path: PathBuf,
-    pub(crate) dir_content: Vec<DirEntry>,
     pub(crate) sort_by: SortKind,
+    pub(crate) dir_content: Vec<DirEntry>,
+    pub config: Config,
 }
 
 impl LampFM {
-    pub fn new() -> Self {
-        Default::default()
+    pub(crate) fn change_to_home_dir(&mut self) {
+        self.change_dir(std::env::home_dir().unwrap());
     }
 
-    pub fn run(&mut self) {
-        self.refresh();
-
-        let (mut rl, thread) = raylib::init()
-            .size(800, 600)
-            .title("LampFM")
-            .resizable()
-            .build();
-        self.window_size.x = 800.0;
-        self.window_size.y = 600.0;
-        let mut gui = RaylibGui::new(&mut rl, &thread);
-
-        while !rl.window_should_close() {
-            let ui = gui.begin(&mut rl);
-
-            self.draw_ui(ui);
-
-            self.window_size.x = rl.get_screen_width() as f32;
-            self.window_size.y = rl.get_screen_height() as f32;
-            let mut d = rl.begin_drawing(&thread);
-            d.clear_background(Color::BLACK);
-
-            gui.end();
-        }
-    }
-
-    pub(crate) fn refresh(&mut self) {
-        let mut entries = Vec::<DirEntry>::new();
-
-        if let Ok(mut dir) = std::fs::read_dir(&self.current_path) {
-            while let Some(Ok(entry)) = dir.next() {
-                entries.push(entry);
-            }
-        }
-
-        // Sort by type, directories first
-        entries.sort_by(|a, b| b.path().is_dir().cmp(&a.path().is_dir()));
+    fn sort_file_entries(&self, entries: &mut [DirEntry]) {
+        entries.sort_by_key(|a| std::cmp::Reverse(a.path().is_dir()));
 
         match self.sort_by {
             SortKind::Name => {
@@ -79,6 +42,36 @@ impl LampFM {
                 });
             }
         }
+    }
+
+    pub(crate) fn refresh(&mut self) {
+        let mut dirs = Vec::<DirEntry>::new();
+        let mut files = Vec::<DirEntry>::new();
+
+        if let Ok(mut dir) = std::fs::read_dir(&self.current_path) {
+            while let Some(Ok(entry)) = dir.next() {
+                if entry.path().is_dir() {
+                    dirs.push(entry)
+                } else {
+                    files.push(entry)
+                };
+            }
+        }
+
+        self.sort_file_entries(&mut dirs);
+        self.sort_file_entries(&mut files);
+
+        // Directories first
+        let mut entries = dirs;
+        entries.append(&mut files);
+
+        if !self.config.show_dotfiles {
+            // Hide dotfiles
+            entries = entries
+                .drain(..)
+                .filter(|a| !a.file_name().to_string_lossy().starts_with('.'))
+                .collect();
+        }
 
         self.dir_content = entries;
     }
@@ -91,11 +84,13 @@ impl LampFM {
 
 impl Default for LampFM {
     fn default() -> Self {
-        Self {
-            window_size: Vector2 { x: 0.0, y: 0.0 },
-            current_path: std::env::home_dir().unwrap(),
+        let mut instance = Self {
+            current_path: Default::default(),
+            sort_by: SortKind::Name,
             dir_content: vec![],
-            sort_by: SortKind::Time,
-        }
+            config: Config::default(),
+        };
+        instance.change_to_home_dir();
+        instance
     }
 }
