@@ -10,13 +10,21 @@ pub struct Config {
 impl Config {
     pub fn load(&mut self) -> bool {
         let dirs = xdg::BaseDirectories::with_prefix("lampfm");
-        let text = match std::fs::read(dirs.place_config_file("config.toml").unwrap()) {
+        let path = dirs.place_config_file("config.toml").unwrap();
+        if !std::fs::exists(&path).unwrap() {
+            self.save();
+            return false;
+        }
+
+        let text = match std::fs::read(&path) {
             Ok(vec) => String::from_utf8_lossy_owned(vec),
             Err(e) => {
                 eprintln!("{}", e);
                 return false;
             }
         };
+
+        drop(path);
 
         match toml::from_str::<Config>(&text) {
             Ok(cfg) => {
@@ -29,6 +37,7 @@ impl Config {
         }
         true
     }
+
     pub fn save(&self) {
         match toml::to_string_pretty(self) {
             Ok(cfg) => {
