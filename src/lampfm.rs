@@ -1,4 +1,4 @@
-use crate::{ActionContext, Config, MarkedFilesStorage, SortKind};
+use crate::{ActionContext, Config, MarkedFilesStorage, SortKind, util};
 use std::cmp::Ordering;
 use std::fs::DirEntry;
 use std::path::PathBuf;
@@ -79,7 +79,7 @@ impl LampFM {
     }
 
     pub(crate) fn change_dir(&mut self, path: PathBuf) {
-        self.current_path = path;
+        self.current_path = util::expand_tilde(&path);
         self.refresh();
     }
 }
